@@ -1,6 +1,6 @@
 {
     "name": "rtcsignal",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "description": "App for signaling webRTC connections",
     "main": "rtcSignal.js",
     "scripts": {
