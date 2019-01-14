@@ -1,15 +1,16 @@
 {
   "name": "rtcsignal",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "App for signaling webRTC connections",
   "main": "rtcSignal.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "preversion": "git add . && git commit",
+    "postversion": "git push"
   },
   "author": "Paul Beaudet",
   "license": "MIT",
   "dependencies": {
-    "socket.io": "^2.2.0",
     "ws": "^6.1.2"
   }
 }

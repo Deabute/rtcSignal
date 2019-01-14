@@ -1,6 +1,5 @@
 // rtcSignal.js ~ copyright 2019 Paul Beaudet ~ MIT License
 
-
 var webS = {
     ocket: require('ws'),
     ocketServer: null,
