@@ -1,11 +1,11 @@
 // rtcSignal.js ~ copyright 2019 Paul Beaudet ~ MIT License
 
-var webS = {
-    ocket: require('ws'),
-    ocketServer: null,
+var socket = {
+    server: null,
     init: function(port){
-        webS.ocketServer = new webS.ocket({ port: port });
-        webS.ocketServer.on('connection', function connection(ws) {
+        var WebSocket = require('ws');
+        socket.server = new WebSocket.Server({ port: port });
+        socket.server.on('connection', function connection(ws) {
           ws.on('message', function incoming(message) {
             console.log('received: %s', message);
           });
@@ -13,3 +13,5 @@ var webS = {
         });
     }
 };
+
+socket.init(process.env.PORT);
