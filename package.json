@@ -1,15 +1,19 @@
 {
-  "name": "rtcsignal",
-  "version": "1.0.4",
-  "description": "App for signaling webRTC connections",
-  "main": "rtcSignal.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postversion": "git push"
-  },
-  "author": "Paul Beaudet",
-  "license": "MIT",
-  "dependencies": {
-    "ws": "^6.1.2"
-  }
+    "name": "rtcsignal",
+    "version": "1.0.4",
+    "description": "App for signaling webRTC connections",
+    "main": "rtcSignal.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "postversion": "git push"
+    },
+    "author": "Paul Beaudet",
+    "license": "MIT",
+    "dependencies": {
+        "ws": "^6.1.2"
+    },
+    "engines": {
+        "node": "10.13.0",
+        "npm": "6.5.0"
+    }
 }
