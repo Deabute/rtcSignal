@@ -21,7 +21,7 @@ var user = { // definitely use a database for this
                     return true;                           // confirm match was made
                 } else {user.s.splice(i, 1);}              // if connection was closed remove user
             }
-        }
+        } return false;
     },
     answer: function(wsID, sdp, friendId){               // find a specific peer to connect with
         for(var i = 0; i < user.s.length; i++){
@@ -31,7 +31,7 @@ var user = { // definitely use a database for this
                     return true;                           // confirm match was made
                 } else {user.s.splice(i, 1);}              // if connection was closed remove user
             }
-        }
+        } return false;
     },
     ice: function(wsID, canidate){
         for(var i = 0; i < user.s.length; i++){
