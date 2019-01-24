@@ -15,23 +15,28 @@ var user = { // definitely use a database for this
     },
     offer: function(wsID, sdp, friendName){               // find a specific peer to connect with
         for(var i = 0; i < user.s.length; i++){
-            if(!user.s[i].con && user.s[i].id !== wsID && friendName === user.s[i].name){
-                user.s[i].con = wsID;                      // note who this peer is about to be connected to
-                // console.log('sending offer');
-                if(user.s[i].send({type: 'offer', id: wsID, sdp: sdp})){
-                    return true;                           // confirm match was made
-                } else {user.s.splice(i, 1);}              // if connection was closed remove user
+            if(!user.s[i].con && user.s[i].id !== wsID){
+                if(friendName){
+                    if(friendName === user.s[i].name){
+                        if(user.connect(wsID, 'offer', i, sdp)){return true;}
+                    }
+                } else { if(user.connect(wsID, 'offer', i, sdp)){return true;} }
             }
         } return false;
+    },
+    connect: function(wsID, type, index, sdp){
+        user.s[index].con = wsID;                  // note who this peer is about to be connected to
+        if(user.s[index].send({type: type, id: wsID, sdp: sdp})){
+            return true;                           // confirm match was made
+        } else {
+            user.s.splice(index, 1);              // if connection was closed remove user
+            return false;
+        }
     },
     answer: function(wsID, sdp, friendId){               // find a specific peer to connect with
         for(var i = 0; i < user.s.length; i++){
             if(!user.s[i].con && friendId === user.s[i].id){
-                user.s[i].con = wsID;                      // note who this peer is about to be connected to
-                // console.log('sending answer');
-                if(user.s[i].send({type: 'answer', id: wsID, sdp: sdp})){
-                    return true;                           // confirm match was made
-                } else {user.s.splice(i, 1);}              // if connection was closed remove user
+                if(user.connect(wsID, 'answer', i, sdp)){return true;}
             }
         } return false;
     },
@@ -99,6 +104,8 @@ var socket = {
             user.name(wsID, req.name);
         } else if(req.type === 'ice'){
             user.ice(wsID, req.canidate);
+        } else if(req.type === 'connected'){
+            user.name(wsID, req.username);
         } else if(req.type === 'disconnect'){
             user.endChat(wsID);
         } else {
