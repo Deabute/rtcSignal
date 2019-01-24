@@ -15,8 +15,9 @@ var user = { // definitely use a database for this
     },
     offer: function(wsID, sdp, friendName){               // find a specific peer to connect with
         for(var i = 0; i < user.s.length; i++){
-            if(!user.s[i].con && friendName === user.s[i].name){
+            if(!user.s[i].con && user.s[i].id !== wsID && friendName === user.s[i].name){
                 user.s[i].con = wsID;                      // note who this peer is about to be connected to
+                // console.log('sending offer');
                 if(user.s[i].send({type: 'offer', id: wsID, sdp: sdp})){
                     return true;                           // confirm match was made
                 } else {user.s.splice(i, 1);}              // if connection was closed remove user
@@ -27,6 +28,7 @@ var user = { // definitely use a database for this
         for(var i = 0; i < user.s.length; i++){
             if(!user.s[i].con && friendId === user.s[i].id){
                 user.s[i].con = wsID;                      // note who this peer is about to be connected to
+                // console.log('sending answer');
                 if(user.s[i].send({type: 'answer', id: wsID, sdp: sdp})){
                     return true;                           // confirm match was made
                 } else {user.s.splice(i, 1);}              // if connection was closed remove user
