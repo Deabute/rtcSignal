@@ -61,20 +61,11 @@ var user = { // definitely use a database for this
 
 var socket = {
     server: null,
-    id: function(onToken){ // "its so random colisions are unlikely" sounds alot like optimism
-        crypto.randomBytes(8, function onRandom(err, buffer){onToken(buffer.toString('hex'));});
-    },
     init: function(port){
         socket.server = new WebSocket.Server({ port: port });
         socket.server.on('connection', function connection(ws) {
-            socket.id(function(wsID){
-                // ws.con = ''; ws.id = wsID; // seems like it could work this way?
-                user.s.push({send: socket.send(ws), id: wsID, con: '', name: ''}); // on token create a user
-                ws.send(JSON.stringify({type:'token', data: wsID}));      // show client what their id is so that they can share it
-                ws.on('message', function incoming(message) {             // handle incoming request
-                    var res = socket.incoming(wsID, message);
-                    if(res.type){ws.send(JSON.stringify(res));}           // given default response object was manipulated respond to client
-                });
+            ws.on('message', function incoming(message) {                          // handle incoming request
+                socket.incoming(message, ws);
             });
         });
     },
@@ -88,30 +79,32 @@ var socket = {
             } else { return false; }
         };
     },
-    incoming: function(wsID, message){
+    incoming: function(message, ws){
         var req = {type: null};                              // defaut request assumption
         try{req = JSON.parse(message);} catch(error){console.log(error);}       // try to parse JSON if its JSON if not we have a default object
         var res = {type: null};                              // default response
         if(req.type === 'offer'){
-            if(user.offer(wsID, req.sdp, req.friendName)){
+            if(user.offer(req.oid, req.sdp, req.friendName)){
                 res.type = 'match';
             } else {res.type = 'nomatch';}
+        } else if(req.type === 'connected'){
+            if(req.oid){
+                user.s.push({send: socket.send(ws), id: req.oid, con: '', name: req.username});
+            } else {console.log('malformed connection');}
         } else if(req.type === 'answer'){
-            if(user.answer(wsID, req.sdp, req.friendId)){
+            if(user.answer(req.oid, req.sdp, req.friendId)){
                 res.type = 'match';
             } else {res.type = 'nomatch';}
         } else if(req.type === 'name'){
-            user.name(wsID, req.name);
+            user.name(req.oid, req.name);
         } else if(req.type === 'ice'){
-            user.ice(wsID, req.canidate);
-        } else if(req.type === 'connected'){
-            user.name(wsID, req.username);
+            user.ice(req.oid, req.canidate);
         } else if(req.type === 'disconnect'){
-            user.endChat(wsID);
+            user.endChat(req.oid);
         } else {
             console.log('thats a wooper: ' + message);       // given message was just a string or something other than JSON
         }
-        return res;                                          // change default res object to respond to client
+        if(res.type){ws.send(JSON.stringify(res));}                 // given default response object was manipulated respond to
     }
 };
 
