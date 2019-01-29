@@ -104,7 +104,7 @@ var socket = {
         } else {
             console.log('thats a wooper: ' + message);       // given message was just a string or something other than JSON
         }
-        if(res.type){ws.send(JSON.stringify(res));}                 // given default response object was manipulated respond to
+        if(res.type){socket.send(ws)(res);}                 // given default response object was manipulated respond to
     }
 };
 
