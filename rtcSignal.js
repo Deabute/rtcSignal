@@ -89,7 +89,7 @@ var socket = {
                 user.s.push({send: socket.send(ws), id: req.oid, con: ''});
             } else {console.log('malformed connection');}
         } else if(req.type === 'answer'){
-            if(user.answer(req.oid, req.sdp, req.friendId)){
+            if(user.answer(req.oid, req.sdp, req.peerId)){
                 res.type = 'match';
             } else {res.type = 'nomatch';}
         } else if(req.type === 'ice'){
