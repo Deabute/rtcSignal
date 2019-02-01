@@ -13,15 +13,11 @@ var user = { // definitely use a database for this
             }
         }
     },
-    offer: function(wsID, sdp, friendName){                     // find a specific peer to connect with
+    offer: function(wsID, sdp){                                 // find a specific peer to connect with
         user.shuffle();                                         // shuffle array for a random result
         for(var i = 0; i < user.s.length; i++){
             if(!user.s[i].con && user.s[i].id !== wsID){
-                if(friendName){
-                    if(friendName === user.s[i].name){
-                        if(user.connect(wsID, 'offer', i, sdp)){return true;}
-                    }
-                } else { if(user.connect(wsID, 'offer', i, sdp)){return true;} }
+                if(user.connect(wsID, 'offer', i, sdp)){return true;}
             }
         } return false;
     },
@@ -49,14 +45,6 @@ var user = { // definitely use a database for this
                 } else {user.s.splice(i, 1);}              // if connection was closed remove user
             }
         } return false; // disconnected from user probably
-    },
-    name: function(wsID, name){
-        for(var i = 0; i < user.s.length; i++){
-            if(user.s[i].id === wsID){          // find wsID
-                user.s[i].name = name;          // remove connection from requesters obj
-                return;
-            }
-        }
     },
     shuffle: function(){
         for(var i = user.s.length - 1; i > 0; i--){
@@ -93,19 +81,17 @@ var socket = {
         try{req = JSON.parse(message);} catch(error){console.log(error);}       // try to parse JSON if its JSON if not we have a default object
         var res = {type: null};                              // default response
         if(req.type === 'offer'){
-            if(user.offer(req.oid, req.sdp, req.friendName.toLowerCase())){
+            if(user.offer(req.oid, req.sdp)){
                 res.type = 'match';
             } else {res.type = 'nomatch';}
         } else if(req.type === 'connected'){
             if(req.oid){
-                user.s.push({send: socket.send(ws), id: req.oid, con: '', name: req.username.toLowerCase()});
+                user.s.push({send: socket.send(ws), id: req.oid, con: ''});
             } else {console.log('malformed connection');}
         } else if(req.type === 'answer'){
             if(user.answer(req.oid, req.sdp, req.friendId)){
                 res.type = 'match';
             } else {res.type = 'nomatch';}
-        } else if(req.type === 'name'){
-            user.name(req.oid, req.name.toLowerCase());
         } else if(req.type === 'ice'){
             user.ice(req.oid, req.canidate);
         } else if(req.type === 'disconnect'){
