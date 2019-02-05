@@ -66,7 +66,7 @@ var user = { // definitely use a database for this
     addToPool: function(sendFunc, oid){
         var existingEntry = null;
         var newHere = true;
-        var count = 0;
+        var count = 1;
         for(var i = 0; i < user.s.length; i++){ // count connected users and check for douple ganger
             if(user.s[i].id === oid){          // this might occur should someone reload their page
                 newHere = false;
