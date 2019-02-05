@@ -46,12 +46,14 @@ var user = { // definitely use a database for this
         sendFunc(res);
         user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
     },
-    ice: function(wsID, canidate){
+    ice: function(wsID, candidate){
         for(var i = 0; i < user.s.length; i++){
             if(user.s[i].con === wsID){
-                if(user.s[i].send({type: 'ice', canidate: canidate})){
+                if(user.s[i].send({type: 'ice', candidate: candidate})){
                     return true;                           // confirm match was made
-                } else {user.s.splice(i, 1);}              // if connection was closed remove user
+                } else {
+                    user.s.splice(i, 1); break;
+                }              // if connection was closed remove user
             }
         } return false; // disconnected from user probably
     },
@@ -120,7 +122,7 @@ var socket = {
         } else if(req.type === 'answer'){
             user.answer(req.oid, req.sdp, req.peerId, sendFunc);
         } else if(req.type === 'ice'){
-            user.ice(req.oid, req.canidate);
+            user.ice(req.oid, req.candidate);
         } else if(req.type === 'disconnect'){
             user.endChat(req.oid);
         } else { console.log('thats a wooper: ' + message); }      // given message was just a string or something other than JSON
