@@ -47,15 +47,16 @@ var user = { // definitely use a database for this
         user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
     },
     ice: function(wsID, candidate){
+        var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
             if(user.s[i].con === wsID){
                 if(user.s[i].send({type: 'ice', candidate: candidate})){
                     return true;                           // confirm match was made
-                } else {
-                    user.s.splice(i, 1); break;
-                }              // if connection was closed remove user
+                } else { deadUsers.push(i); }              // if connection was closed remove user
             }
-        } return false; // disconnected from user probably
+        }
+        user.bringOutYouDead(deadUsers);
+        return false; // disconnected from user probably
     },
     shuffle: function(){
         for(var i = user.s.length - 1; i > 0; i--){
