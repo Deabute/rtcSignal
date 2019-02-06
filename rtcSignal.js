@@ -4,19 +4,31 @@ var WebSocket = require('ws');
 
 var user = { // definitely use a database for this
     s: [],   // array of connected clients, so long as server is up
-    endChat: function(oid){
+    endChat: function(oid, sendFunc){
         for(var i = 0; i < user.s.length; i++){
-            user.s[i].send({type: 'pool', count: 1});       // increment counter for users reconnecting
-            if(user.s[i].id === oid){ user.s[i].con = ''; } // find user by oid and remove previous connection
+            if(user.s[i].id === oid){
+                user.s[i].con = '';
+                return;
+            }  // find user by oid and remove previous connection
         }
+    },
+    repool: function(oid, sendFunc){
+        var count = 1;
+        for(var i = 0; i < user.s.length; i++){
+            if(user.s[i].id === oid){user.s[i].active = true;}
+            else if(user.s[i].active){count++;}
+            user.s[i].send({type: 'pool', count: 1}); // notify users a new connection has been added to pool
+        }
+        if(count % 2 === 0){ sendFunc({type:'makeOffer'}); }
     },
     offer: function(wsID, sdp, sendFunc){                       // find a specific peer to connect with
         user.shuffle();                                         // shuffle array for a random result
         var deadUsers = [];
         var res = {type:'nomatch'};
         for(var i = 0; i < user.s.length; i++){
-            if(!user.s[i].con && user.s[i].id !== wsID){
+            if(user.s[i].active && user.s[i].id !== wsID){
                 if(user.s[i].send({type: 'offer', id: wsID, sdp: sdp})){
+                    user.s[i].active = false;
                     user.s[i].con = wsID;              // note who this peer is about to be connected to
                     res.type = 'match';
                     break;
@@ -34,8 +46,9 @@ var user = { // definitely use a database for this
         var res = {type:'nomatch'};
         var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
-            if(!user.s[i].con && peerId === user.s[i].id){
+            if(peerId === user.s[i].id){
                 if(user.s[i].send({type: 'answer', id: wsID, sdp: sdp})){
+                    user.s[i].active = false;
                     user.s[i].con = wsID;              // note who this peer is about to be connected to
                     res.type = 'match';
                     user.s.forEach(function each(client){client.send({type:'pool', count: -2});}); // broadcast to others
@@ -46,10 +59,10 @@ var user = { // definitely use a database for this
         sendFunc(res);
         user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
     },
-    ice: function(wsID, candidate){
+    ice: function(oid, candidate){
         var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
-            if(user.s[i].con === wsID){
+            if(user.s[i].con === oid){
                 if(user.s[i].send({type: 'ice', candidate: candidate})){
                     return true;                           // confirm match was made
                 } else { deadUsers.push(i); }              // if connection was closed remove user
@@ -67,26 +80,20 @@ var user = { // definitely use a database for this
         }
     },
     addToPool: function(sendFunc, oid){
-        var existingEntry = null;
-        var newHere = true;
+        var active = false;
         var count = 1;
         for(var i = 0; i < user.s.length; i++){ // count connected users and check for douple ganger
             if(user.s[i].id === oid){          // this might occur should someone reload their page
-                newHere = false;
-                existingEntry = i;
-            } else {
-                if(!user.s[i].con){count++;}    // figure availible users
-            }
+                user.s[i].send = sendFunc;
+                if(user.s[i].active){active = true;}
+                user.s[i].active = true;
+                user.s[i].con = '';
+            } else if(user.s[i].active){count++;}    // figure availible users
         }
-        if(newHere){
+        if(count % 2 === 0){sendFunc({type:'makeOffer'}); }
+        if(!active){
             user.s.forEach(function each(client){client.send({type:'pool', count: 1});}); // broadcast to others
-            user.s.push({send: sendFunc, id: oid, con: ''});
-        } else {
-            user.s[existingEntry].send = sendFunc;
-            if(user.s[existingEntry].con){
-                console.log('Reloaded in the middle of a conversation?');
-                user.s[existingEntry].con = ''; // might want to check this, incase of dual entrys or reloding in middle of conversation
-            }
+            user.s.push({send: sendFunc, id: oid, con: '', active: true});
         }
         sendFunc({type:'pool', count: count});     // sends availible users in connection pool
     }
@@ -124,8 +131,10 @@ var socket = {
             user.answer(req.oid, req.sdp, req.peerId, sendFunc);
         } else if(req.type === 'ice'){
             user.ice(req.oid, req.candidate);
-        } else if(req.type === 'disconnect'){
-            user.endChat(req.oid);
+        } else if(req.type === 'repool'){
+            user.repool(req.oid, sendFunc);
+        } else if(req.type === 'chatEnd'){
+            user.endChat(req.oid, sendFunc);
         } else { console.log('thats a wooper: ' + message); }      // given message was just a string or something other than JSON
     }
 };
