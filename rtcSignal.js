@@ -40,7 +40,10 @@ var user = { // definitely use a database for this
     },
     bringOutYouDead: function(theDead){
         for(var i = 0; i < theDead.length; i++){user.s.splice(i, 1);} // if connection was closed remove user
-        user.s.forEach(function each(client){client.send({type:'pool', count: -theDead.length});}); // broadcast to others
+        user.s.forEach(function each(client){
+            console.log(client.id + ' got sent a reduce');
+            client.send({type:'pool', count: -theDead.length});
+        }); // broadcast to others
     },
     answer: function(wsID, sdp, peerId, sendFunc){ // find a specific peer to connect with
         var res = {type:'nomatch'};
@@ -51,6 +54,7 @@ var user = { // definitely use a database for this
                     user.s[i].active = false;
                     user.s[i].con = wsID;              // note who this peer is about to be connected to
                     res.type = 'match';
+                    console.log('reducing the pool by 2');
                     user.s.forEach(function each(client){client.send({type:'pool', count: -2});}); // broadcast to others
                     break;
                 } else { deadUsers.push(i); }
@@ -81,20 +85,32 @@ var user = { // definitely use a database for this
     },
     addToPool: function(sendFunc, oid){
         var active = false;
-        var count = 1;
+        var newHere = true;
+        var count = 0;
+        console.log('new user ' + oid + ' being added');
         for(var i = 0; i < user.s.length; i++){ // count connected users and check for douple ganger
             if(user.s[i].id === oid){          // this might occur should someone reload their page
                 user.s[i].send = sendFunc;
                 if(user.s[i].active){active = true;}
                 user.s[i].active = true;
                 user.s[i].con = '';
-            } else if(user.s[i].active){count++;}    // figure availible users
+                newHere = false;
+            } else if(user.s[i].active){
+                console.log('user ' + user.s[i].id + ' is active');
+                count++;}    // figure availible users
         }
-        if(count % 2 === 0){sendFunc({type:'makeOffer'}); }
         if(!active){
-            user.s.forEach(function each(client){client.send({type:'pool', count: 1});}); // broadcast to others
-            user.s.push({send: sendFunc, id: oid, con: '', active: true});
+            user.s.forEach(function each(client){
+                if(client.id !== oid){
+                    console.log(client.id + 'got sent an increment');
+                    client.send({type:'pool', count: 1});
+                }
+            }); // broadcast to others not user
+            count++;
+            if(newHere){user.s.push({send: sendFunc, id: oid, con: '', active: true});}
         }
+        console.log(count);
+        if(count && count % 2 === 0){sendFunc({type:'makeOffer'}); }
         sendFunc({type:'pool', count: count});     // sends availible users in connection pool
     }
 };
