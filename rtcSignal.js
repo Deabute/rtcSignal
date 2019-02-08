@@ -54,8 +54,6 @@ var user = { // definitely use a database for this
                     user.s[i].active = false;
                     user.s[i].con = wsID;              // note who this peer is about to be connected to
                     res.type = 'match';
-                    console.log('reducing the pool by 2');
-                    user.s.forEach(function each(client){client.send({type:'pool', count: -2});}); // broadcast to others
                     break;
                 } else { deadUsers.push(i); }
             }
@@ -147,6 +145,8 @@ var socket = {
             user.answer(req.oid, req.sdp, req.peerId, sendFunc);
         } else if(req.type === 'ice'){
             user.ice(req.oid, req.candidate);
+        } else if(req.type === 'unpool'){
+            user.s.forEach(function each(client){client.send({type:'pool', count: -1});});
         } else if(req.type === 'repool'){
             user.repool(req.oid, sendFunc);
         } else if(req.type === 'chatEnd'){
