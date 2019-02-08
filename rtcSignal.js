@@ -12,6 +12,14 @@ var user = { // definitely use a database for this
             }  // find user by oid and remove previous connection
         }
     },
+    rematch: function(oid, sendFunc){
+        var count = 1;
+        for(var i = 0; i < user.s.length; i++){
+            if(user.s[i].id === oid){user.s[i].active = true;}
+            else if(user.s[i].active){count++;}
+        }
+        if(count % 2 === 0){ sendFunc({type:'makeOffer'}); }
+    },
     repool: function(oid, sendFunc){
         var count = 1;
         for(var i = 0; i < user.s.length; i++){
@@ -107,7 +115,6 @@ var user = { // definitely use a database for this
             count++;
             if(newHere){user.s.push({send: sendFunc, id: oid, con: '', active: true});}
         }
-        console.log(count);
         if(count && count % 2 === 0){sendFunc({type:'makeOffer'}); }
         sendFunc({type:'pool', count: count});     // sends availible users in connection pool
     }
@@ -145,6 +152,8 @@ var socket = {
             user.answer(req.oid, req.sdp, req.peerId, sendFunc);
         } else if(req.type === 'ice'){
             user.ice(req.oid, req.candidate);
+        } else if(req.type === 'unmatched'){
+            user.rematch(req.oid, sendFunc);
         } else if(req.type === 'unpool'){
             user.s.forEach(function each(client){client.send({type:'pool', count: -1});});
         } else if(req.type === 'repool'){
