@@ -4,7 +4,7 @@ var WebSocket = require('ws');
 
 var user = { // definitely use a database for this
     s: [],   // array of connected clients, so long as server is up
-    endChat: function(oid, sendFunc){
+    endCon: function(oid, sendFunc){
         for(var i = 0; i < user.s.length; i++){
             if(user.s[i].id === oid){
                 user.s[i].con = '';
@@ -13,54 +13,60 @@ var user = { // definitely use a database for this
         }
     },
     rematch: function(oid, sendFunc){
-        var count = 1;
+        var free = 1; // there is at least one connection (requesting client)
         for(var i = 0; i < user.s.length; i++){
-            if(user.s[i].id === oid){user.s[i].active = true;}
-            else if(user.s[i].active){count++;}
+            if(user.s[i].id === oid){user.s[i].con = '';}
+            else if(!user.s[i].con) {free++;}
         }
-        if(count % 2 === 0){ sendFunc({type:'makeOffer'}); }
+        if(free % 2 === 0){ sendFunc({type:'makeOffer'}); }
     },
-    repool: function(oid, sendFunc){
-        var count = 1;
-        for(var i = 0; i < user.s.length; i++){
-            if(user.s[i].id === oid){user.s[i].active = true;}
-            else if(user.s[i].active){count++;}
-            user.s[i].send({type: 'pool', count: 1}); // notify users a new connection has been added to pool
-        }
-        if(count % 2 === 0){ sendFunc({type:'makeOffer'}); }
-    },
-    offer: function(wsID, sdp, sendFunc){                       // find a specific peer to connect with
-        user.shuffle();                                         // shuffle array for a random result
+    offer: function(oid, sdp, sendFunc){                       // find a specific peer to connect with
+        user.shuffle();                                        // shuffle array for a random result
         var deadUsers = [];
         var res = {type:'nomatch'};
+        var match = '';
         for(var i = 0; i < user.s.length; i++){
-            if(user.s[i].active && user.s[i].id !== wsID){
-                if(user.s[i].send({type: 'offer', id: wsID, sdp: sdp})){
-                    user.s[i].active = false;
-                    user.s[i].con = wsID;              // note who this peer is about to be connected to
+            if(!user.s[i].con && user.s[i].active && user.s[i].id !== oid){ // able, active, not self
+                if(user.s[i].send({type: 'offer', id: oid, sdp: sdp})){
+                    user.s[i].con = oid;              // note who this peer is about to be connected to
                     res.type = 'match';
+                    match = user.s[i].id;
                     break;
                 } else { deadUsers.push(i); }
+            }
+        }
+        if(match){
+            for(var u = 0; u < user.s.length; u++){
+                if(user.s[u].id === oid){
+                    user.s[u].con = match;
+                    break;
+                }
             }
         }
         sendFunc(res);
         user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
     },
     bringOutYouDead: function(theDead){
-        for(var i = 0; i < theDead.length; i++){user.s.splice(i, 1);} // if connection was closed remove user
-        user.s.forEach(function each(client){
-            console.log(client.id + ' got sent a reduce');
-            client.send({type:'pool', count: -theDead.length});
-        }); // broadcast to others
+        if(theDead.length){
+            var activeDead = 0;
+            for(var i = 0; i < theDead.length; i++){
+                if(theDead[i].active){activeDead++;}
+            }
+            theDead.forEach(function eachDead(dead){user.s.splice(dead, 1);}); // if connection was closed remove user
+            if(activeDead){
+                user.s.forEach(function eachRemaining(client){
+                    console.log(client.id + ' got sent a reduce');
+                    client.send({type:'pool', count: activeDead});
+                }); // broadcast to others
+            }
+        }
     },
-    answer: function(wsID, sdp, peerId, sendFunc){ // find a specific peer to connect with
+    answer: function(oid, sdp, peerId, sendFunc){ // find a specific peer to connect with
         var res = {type:'nomatch'};
         var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
             if(peerId === user.s[i].id){
-                if(user.s[i].send({type: 'answer', id: wsID, sdp: sdp})){
-                    user.s[i].active = false;
-                    user.s[i].con = wsID;              // note who this peer is about to be connected to
+                if(user.s[i].send({type: 'answer', id: oid, sdp: sdp})){
                     res.type = 'match';
                     break;
                 } else { deadUsers.push(i); }
@@ -89,10 +95,29 @@ var user = { // definitely use a database for this
             user.s[randIndex] = placeholder;
         }
     },
-    addToPool: function(sendFunc, oid){
+};
+
+var pool = {
+    reduce: function(oid){
+        for(var i = 0; i < user.s.length; i++){
+            if(user.s[i].id === oid){user.s[i].active = false;}
+            user.s[i].send({type: 'pool', count: -1}); // notify users a new connection has been added to pool
+        }
+    },
+    add: function(oid, sendFunc, repool){
+        var count = 0;
+        for(var i = 0; i < user.s.length; i++){
+            if(user.s[i].id === oid){user.s[i].active = true;} // needs to be first to trip next case
+            if(user.s[i].active)    {count++;}                 // count active participants able to be match
+            user.s[i].send({type: 'pool', count: 1});          // notify all users a new connection has been added to pool
+        }
+        if(count % 2 === 0){ sendFunc({type:'makeOffer'}); }
+    },
+    join: function(oid, sendFunc){
         var active = false;
         var newHere = true;
-        var count = 0;
+        var pool = 0; // users shown as availible
+        var free = 1; // users that can be paired
         console.log('new user ' + oid + ' being added');
         for(var i = 0; i < user.s.length; i++){ // count connected users and check for douple ganger
             if(user.s[i].id === oid){          // this might occur should someone reload their page
@@ -103,20 +128,28 @@ var user = { // definitely use a database for this
                 newHere = false;
             } else if(user.s[i].active){
                 console.log('user ' + user.s[i].id + ' is active');
-                count++;}    // figure availible users
+                if(!user.con){
+                    free++;
+                    console.log('and free');
+                }
+                pool++;
+            }    // figure availible users
         }
         if(!active){
             user.s.forEach(function each(client){
                 if(client.id !== oid){
-                    console.log(client.id + 'got sent an increment');
+                    console.log(client.id + ' got sent an increment');
                     client.send({type:'pool', count: 1});
                 }
-            }); // broadcast to others not user
-            count++;
+            });      // broadcast to others not user
             if(newHere){user.s.push({send: sendFunc, id: oid, con: '', active: true});}
         }
-        if(count && count % 2 === 0){sendFunc({type:'makeOffer'}); }
-        sendFunc({type:'pool', count: count});     // sends availible users in connection pool
+        pool++; // increase count to include user
+        if(free % 2 === 0){sendFunc({type:'makeOffer'}); }
+        console.log(oid + ' saw ' + pool + ' in the pool');
+        console.log(oid + ' saw ' + free + ' as free connections');
+
+        sendFunc({type:'pool', count: pool});     // sends availible users in connection pool
     }
 };
 
@@ -146,7 +179,7 @@ var socket = {
         if(req.type === 'offer'){
             user.offer(req.oid, req.sdp, sendFunc);
         } else if(req.type === 'connected'){
-            if(req.oid){ user.addToPool(sendFunc, req.oid); }
+            if(req.oid){ pool.join(req.oid, sendFunc); }
             else       { console.log('malformed connection'); }
         } else if(req.type === 'answer'){
             user.answer(req.oid, req.sdp, req.peerId, sendFunc);
@@ -154,12 +187,12 @@ var socket = {
             user.ice(req.oid, req.candidate);
         } else if(req.type === 'unmatched'){
             user.rematch(req.oid, sendFunc);
-        } else if(req.type === 'unpool'){
-            user.s.forEach(function each(client){client.send({type:'pool', count: -1});});
         } else if(req.type === 'repool'){
-            user.repool(req.oid, sendFunc);
-        } else if(req.type === 'chatEnd'){
-            user.endChat(req.oid, sendFunc);
+            pool.add(req.oid, sendFunc);
+        } else if(req.type === 'reduce'){
+            pool.reduce(req.oid);
+        } else if(req.type === 'endCon'){
+            user.endCon(req.oid, sendFunc);
         } else { console.log('thats a wooper: ' + message); }      // given message was just a string or something other than JSON
     }
 };
