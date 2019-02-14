@@ -4,10 +4,10 @@ var WebSocket = require('ws');
 
 var user = { // definitely use a database for this
     s: [],   // array of connected clients, so long as server is up
-    endCon: function(oid, sendFunc){
+    pause: function(oid, sendFunc){
         for(var i = 0; i < user.s.length; i++){
             if(user.s[i].id === oid){
-                user.s[i].con = '';
+                user.s[i].con = 'done';
                 return;
             }  // find user by oid and remove previous connection
         }
@@ -48,15 +48,14 @@ var user = { // definitely use a database for this
     },
     bringOutYouDead: function(theDead){
         if(theDead.length){
+            console.log('deadcount: ' + theDead.length);
             var activeDead = 0;
-            for(var i = 0; i < theDead.length; i++){
-                if(theDead[i].active){activeDead++;}
-            }
+            for(var i = 0; i < theDead.length; i++){ if(theDead[i].active){activeDead++;} }
             theDead.forEach(function eachDead(dead){user.s.splice(dead, 1);}); // if connection was closed remove user
             if(activeDead){
                 user.s.forEach(function eachRemaining(client){
                     console.log(client.id + ' got sent a reduce');
-                    client.send({type:'pool', count: activeDead});
+                    client.send({type:'pool', count: -activeDead});
                 }); // broadcast to others
             }
         }
@@ -104,52 +103,46 @@ var pool = {
             user.s[i].send({type: 'pool', count: -1}); // notify users a new connection has been added to pool
         }
     },
-    add: function(oid, sendFunc, repool){
-        var count = 0;
+    add: function(oid, sendFunc, addToPool){
+        var deadUsers = [];
+        var pool = 0;
+        var free = 0;
+        // console.log('about to add total ' + user.s.length);
         for(var i = 0; i < user.s.length; i++){
-            if(user.s[i].id === oid){user.s[i].active = true;} // needs to be first to trip next case
-            if(user.s[i].active)    {count++;}                 // count active participants able to be match
-            user.s[i].send({type: 'pool', count: 1});          // notify all users a new connection has been added to pool
+            if(user.s[i].id === oid){
+                user.s[i].con = '';
+                user.s[i].active = true;
+                pool++; free++;
+            } else if(addToPool){
+                if(user.s[i].send({type: 'pool', count: 1})){
+                    if(user.s[i].active){pool++;}                  // count active participants able to be match
+                    if(!user.s[i].con)  {free++;}
+                    console.log(user.s[i].id + ' got sent pool increment');
+                } else {
+                    console.log('could not sent to ' + user.s[i].id);
+                     deadUsers.push(i); }         // notify all users a new connection has been added to pool
+            }
         }
-        if(count % 2 === 0){ sendFunc({type:'makeOffer'}); }
+        console.log(oid + ' saw ' + pool + ' in the pool');
+        console.log(oid + ' saw ' + free + ' as free connections');
+        if(free % 2 === 0){sendFunc({type:'makeOffer', pool: pool});}
+        else {sendFunc({type:'pool', count: pool});}
+        user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
     },
     join: function(oid, sendFunc){
-        var active = false;
-        var newHere = true;
-        var pool = 0; // users shown as availible
-        var free = 1; // users that can be paired
+        var newUser = true;
+        var addToPool = true;
         console.log('new user ' + oid + ' being added');
         for(var i = 0; i < user.s.length; i++){ // count connected users and check for douple ganger
             if(user.s[i].id === oid){          // this might occur should someone reload their page
+                newUser = false;
                 user.s[i].send = sendFunc;
-                if(user.s[i].active){active = true;}
-                user.s[i].active = true;
-                user.s[i].con = '';
-                newHere = false;
-            } else if(user.s[i].active){
-                console.log('user ' + user.s[i].id + ' is active');
-                if(!user.con){
-                    free++;
-                    console.log('and free');
-                }
-                pool++;
-            }    // figure availible users
+                if(user.s[i].active){addToPool = false;}
+                // TODO if previous connection can reconnect?
+            }
         }
-        if(!active){
-            user.s.forEach(function each(client){
-                if(client.id !== oid){
-                    console.log(client.id + ' got sent an increment');
-                    client.send({type:'pool', count: 1});
-                }
-            });      // broadcast to others not user
-            if(newHere){user.s.push({send: sendFunc, id: oid, con: '', active: true});}
-        }
-        pool++; // increase count to include user
-        if(free % 2 === 0){sendFunc({type:'makeOffer'}); }
-        console.log(oid + ' saw ' + pool + ' in the pool');
-        console.log(oid + ' saw ' + free + ' as free connections');
-
-        sendFunc({type:'pool', count: pool});     // sends availible users in connection pool
+        if(newUser){user.s.push({send: sendFunc, id: oid, con: '', active: true});}
+        pool.add(oid, sendFunc, addToPool);
     }
 };
 
@@ -188,11 +181,11 @@ var socket = {
         } else if(req.type === 'unmatched'){
             user.rematch(req.oid, sendFunc);
         } else if(req.type === 'repool'){
-            pool.add(req.oid, sendFunc);
+            pool.add(req.oid, sendFunc, 1);
         } else if(req.type === 'reduce'){
             pool.reduce(req.oid);
-        } else if(req.type === 'endCon'){
-            user.endCon(req.oid, sendFunc);
+        } else if(req.type === 'pause'){
+            user.pause(req.oid, sendFunc);
         } else { console.log('thats a wooper: ' + message); }      // given message was just a string or something other than JSON
     }
 };
