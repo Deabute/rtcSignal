@@ -103,7 +103,7 @@ var pool = {
             user.s[i].send({type: 'pool', count: -1}); // notify users a new connection has been added to pool
         }
     },
-    add: function(oid, sendFunc, addToPool){
+    add: function(oid, sendFunc, amount){
         var deadUsers = [];
         var pool = 0;
         var free = 0;
@@ -113,14 +113,15 @@ var pool = {
                 user.s[i].con = '';
                 user.s[i].active = true;
                 pool++; free++;
-            } else if(addToPool){
-                if(user.s[i].send({type: 'pool', count: 1})){
+            } else {
+                if(user.s[i].send({type: 'pool', count: amount})){ // sending zero make be wastefull, but we need to check and increment
                     if(user.s[i].active){pool++;}                  // count active participants able to be match
                     if(!user.s[i].con)  {free++;}
                     console.log(user.s[i].id + ' got sent pool increment');
                 } else {
                     console.log('could not sent to ' + user.s[i].id);
-                     deadUsers.push(i); }         // notify all users a new connection has been added to pool
+                    deadUsers.push(i);
+                }         // notify all users a new connection has been added to pool
             }
         }
         console.log(oid + ' saw ' + pool + ' in the pool');
@@ -131,13 +132,16 @@ var pool = {
     },
     join: function(oid, sendFunc){
         var newUser = true;
-        var addToPool = true;
+        var addToPool = 1;
         console.log('new user ' + oid + ' being added');
         for(var i = 0; i < user.s.length; i++){ // count connected users and check for douple ganger
             if(user.s[i].id === oid){          // this might occur should someone reload their page
                 newUser = false;
                 user.s[i].send = sendFunc;
-                if(user.s[i].active){addToPool = false;}
+                if(user.s[i].active){
+                    console.log('everyone thinks this user was active before, not adding them to pool');
+                    addToPool = 0;
+                }
                 // TODO if previous connection can reconnect?
             }
         }
