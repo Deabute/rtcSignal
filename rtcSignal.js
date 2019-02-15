@@ -98,10 +98,14 @@ var user = { // definitely use a database for this
 
 var pool = {
     reduce: function(oid){
+        console.log('reducing ' + oid);
+        var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
             if(user.s[i].id === oid){user.s[i].active = false;}
-            user.s[i].send({type: 'pool', count: -1}); // notify users a new connection has been added to pool
+            if(user.s[i].send({type: 'pool', count: -1})){ // notify users a new connection has been added to pool
+            } else {deadUsers.push(i);}
         }
+        user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
     },
     add: function(oid, sendFunc, amount){
         var deadUsers = [];
