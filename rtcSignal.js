@@ -157,6 +157,7 @@ var pool = {
 
 var socket = {
     server: null,
+    open: true,
     init: function(port){
         socket.server = new WebSocket.Server({ port: port });
         socket.server.on('connection', function connection(ws) {
@@ -178,24 +179,34 @@ var socket = {
     incoming: function(message, sendFunc){
         var req = {type: null};                              // defaut request assumption
         try{req = JSON.parse(message);} catch(error){console.log(error);}       // try to parse JSON if its JSON if not we have a default object
-        if(req.type === 'offer'){
-            user.offer(req.oid, req.sdp, sendFunc, req.lastMatches);
-        } else if(req.type === 'connected'){
-            if(req.oid){ pool.join(req.oid, sendFunc, req.lastMatches); }
-            else       { console.log('malformed connection'); }
-        } else if(req.type === 'answer'){
-            user.answer(req.oid, req.sdp, req.peerId, sendFunc);
-        } else if(req.type === 'ice'){
-            user.ice(req.oid, req.candidate);
-        } else if(req.type === 'unmatched'){
-            user.rematch(req.oid, sendFunc);
-        } else if(req.type === 'repool'){
-            pool.add(req.oid, sendFunc, 1, req.lastMatches);
-        } else if(req.type === 'reduce'){
-            pool.reduce(req.oid);
-        } else if(req.type === 'pause'){
-            user.pause(req.oid, sendFunc);
-        } else { console.log('thats a wooper: ' + message); }      // given message was just a string or something other than JSON
+        if(socket.open){
+            if(req.type === 'offer'){
+                user.offer(req.oid, req.sdp, sendFunc, req.lastMatches);
+            } else if(req.type === 'connected'){
+                if(req.oid){ pool.join(req.oid, sendFunc, req.lastMatches); }
+                else       { console.log('malformed connection'); }
+            } else if(req.type === 'answer'){
+                user.answer(req.oid, req.sdp, req.peerId, sendFunc);
+            } else if(req.type === 'ice'){
+                user.ice(req.oid, req.candidate);
+            } else if(req.type === 'unmatched'){
+                user.rematch(req.oid, sendFunc);
+            } else if(req.type === 'repool'){
+                pool.add(req.oid, sendFunc, 1, req.lastMatches);
+            } else if(req.type === 'reduce'){
+                pool.reduce(req.oid);
+            } else if(req.type === 'pause'){
+                user.pause(req.oid, sendFunc);
+            } else { console.log('thats a wooper: ' + message); }      // given message was just a string or something other than JSON
+        }
+        if(req.type === 'startup'){
+            if(req.pass === process.env.PASS){
+                socket.open = true;
+                setTimeout(function(){
+                    socket.open = false;
+                }, req.time);
+            }
+        }
     }
 };
 
