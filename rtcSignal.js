@@ -48,7 +48,6 @@ var user = { // definitely use a database for this
     },
     bringOutYouDead: function(theDead){
         if(theDead.length){
-            console.log('deadcount: ' + theDead.length);
             var activeDead = 0;
             for(var i = 0; i < theDead.length; i++){ if(theDead[i].active){activeDead++;} }
             theDead.forEach(function eachDead(dead){user.s.splice(dead, 1);}); // if connection was closed remove user
@@ -130,14 +129,14 @@ var pool = {
                 sendFunc({type:'makeOffer', pool: conP});
             } else { // no potential match
                 pool.freeOffers++;
-                sendFunc({type:'pool', count: conP});
+                sendFunc({type:'setPool', pool: conP});
             }
         }
         if(pool.freeOffers){
             match(true);}
         else if(free % 2 === 0){
             match(false);}
-        else {sendFunc({type:'pool', count: conP});}
+        else {sendFunc({type:'setPool', pool: conP});}
         user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
     },
     join: function(oid, sendFunc, lastMatches){
