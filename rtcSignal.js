@@ -7,7 +7,7 @@ var user = { // definitely use a database for this
     pause: function(oid, sendFunc){
         for(var i = 0; i < user.s.length; i++){
             if(user.s[i].id === oid){
-                user.s[i].con = 'done';
+                if(user.s[i].con){ user.s[i].con = 'done';}
                 return;
             }  // find user by oid and remove previous connection
         }
@@ -96,10 +96,13 @@ var user = { // definitely use a database for this
 
 var pool = {
     freeOffers: 0,
-    reduce: function(oid){
+    reduce: function(oid, pause){
         var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
-            if(user.s[i].id === oid){user.s[i].active = false;}
+            if(user.s[i].id === oid){
+                user.s[i].active = false;
+                if(pause){user.s[i].con = 'done';}         // don't connect anyone to this client until they are ready
+            }
             if(user.s[i].send({type: 'pool', count: -1})){ // notify users a new connection has been added to pool
             } else {deadUsers.push(i);}
         }
@@ -193,7 +196,7 @@ var socket = {
             } else if(req.type === 'repool'){
                 pool.add(req.oid, sendFunc, 1, req.lastMatches);
             } else if(req.type === 'reduce'){
-                pool.reduce(req.oid);
+                pool.reduce(req.oid, req.pause);
             } else if(req.type === 'pause'){
                 user.pause(req.oid, sendFunc);
             } else { console.log('thats a wooper: ' + message); }      // given message was just a string or something other than JSON
