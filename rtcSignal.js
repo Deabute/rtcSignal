@@ -199,6 +199,8 @@ var socket = {
                 pool.reduce(req.oid, req.pause);
             } else if(req.type === 'pause'){
                 user.pause(req.oid, sendFunc);
+            } else if(req.type === 'error'){
+                console.log('client error: ' + req.error);
             } else { console.log('thats a wooper: ' + message); }      // given message was just a string or something other than JSON
         }
         if(req.type === 'startup'){
