@@ -118,10 +118,11 @@ var pool = {
                 console.log('existing user');
                 user.s[i].con = '';
                 user.s[i].active = true;
+                user.s[i].send = sendFunc;
                 conP++; free++;
             } else {
                 if(user.s[i].send({type: 'pool', count: amount})){ // sending zero make be wastefull, but we need to check and increment
-                    if(user.s[i].id !== lastMatches[0]){matchPotential++;}
+                    if(user.s[i].id !== lastMatches[0]){matchPotential++; console.log('adding potential');}
                     if(user.s[i].active){conP++;}                  // count active participants able to be match
                     if(!user.s[i].con)  {free++;}
                 } else { deadUsers.push(i); }                      // notify all users a new connection has been added to pool
