@@ -185,7 +185,7 @@ var socket = {
             if(req.type === 'offer'){
                 user.offer(req.oid, req.sdp, sendFunc, req.lastMatches);
             } else if(req.type === 'connected'){
-                if(req.oid){ pool.join(req.oid, sendFunc, req.lastMatches); }
+                if(req.oid){ pool.join(req.oid, sendFunc, req.lastMatches); console.log(req.oid + ' ');}
                 else       { console.log('malformed connection'); }
             } else if(req.type === 'answer'){
                 user.answer(req.oid, req.sdp, req.peerId, sendFunc);
