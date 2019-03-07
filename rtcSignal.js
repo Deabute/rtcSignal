@@ -115,6 +115,7 @@ var pool = {
         var matchPotential = 0;
         for(var i = 0; i < user.s.length; i++){
             if(user.s[i].id === oid){
+                console.log('existing user');
                 user.s[i].con = '';
                 user.s[i].active = true;
                 conP++; free++;
@@ -128,9 +129,11 @@ var pool = {
         }
         function match(fromFreeOffer){
             if(matchPotential){
+                console.log('making match potential offer');
                 if(fromFreeOffer){pool.freeOffers--;}
                 sendFunc({type:'makeOffer', pool: conP});
             } else { // no potential match
+                console.log('no match no potential');
                 pool.freeOffers++;
                 sendFunc({type:'setPool', pool: conP});
             }
@@ -138,6 +141,7 @@ var pool = {
         if(pool.freeOffers){
             match(true);}
         else if(free % 2 === 0){
+            console.log('typical match case, divisable by two');
             match(false);}
         else {sendFunc({type:'setPool', pool: conP});}
         user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
