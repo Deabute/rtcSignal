@@ -27,7 +27,7 @@ var user = { // definitely use a database for this
         var match = '';
         for(var i = 0; i < user.s.length; i++){
             if(!user.s[i].con && user.s[i].active && user.s[i].id !== oid && lastMatches[0] !== user.s[i].id){ // able, active, not self
-                if(user.s[i].send({type: 'offer', id: oid, sdp: sdp})){
+                if(user.s[i].send({type: 'offer', id: oid, sdp: sdp, gwid: 'erm'})){
                     user.s[i].con = oid;              // note who this peer is about to be connected to
                     res.type = 'match';
                     match = user.s[i].id;
@@ -63,7 +63,7 @@ var user = { // definitely use a database for this
         var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
             if(peerId === user.s[i].id){
-                if(user.s[i].send({type: 'answer', id: oid, sdp: sdp})){
+                if(user.s[i].send({type: 'answer', id: oid, sdp: sdp, gwid: 'erm'})){
                     res.type = 'match';
                     break;
                 } else { deadUsers.push(i); }
@@ -72,11 +72,11 @@ var user = { // definitely use a database for this
         sendFunc(res);
         user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
     },
-    ice: function(oid, candidate){
+    ice: function(oid, candidates){
         var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
             if(user.s[i].con === oid){
-                if(user.s[i].send({type: 'ice', candidate: candidate})){
+                if(user.s[i].send({type: 'ice', candidates: candidates})){
                     return true;                           // confirm match was made
                 } else { deadUsers.push(i); }              // if connection was closed remove user
             }
@@ -195,7 +195,7 @@ var socket = {
             } else if(req.type === 'answer'){
                 user.answer(req.oid, req.sdp, req.peerId, sendFunc);
             } else if(req.type === 'ice'){
-                user.ice(req.oid, req.candidate);
+                user.ice(req.oid, req.candidates);
             } else if(req.type === 'unmatched'){
                 user.rematch(req.oid, sendFunc);
             } else if(req.type === 'repool'){
