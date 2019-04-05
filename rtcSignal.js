@@ -18,18 +18,18 @@ var user = { // definitely use a database for this
             if(user.s[i].id === oid){user.s[i].con = '';}
             else if(!user.s[i].con) {free++;}
         }
-        if(free % 2 === 0){ sendFunc({type:'makeOffer'}); }
+        if(free % 2 === 0){ sendFunc({action:'makeOffer'}); }
     },
     offer: function(oid, sdp, sendFunc, lastMatches){          // find a specific peer to connect with
         user.shuffle();                                        // shuffle array for a random result
         var deadUsers = [];
-        var res = {type:'nomatch'};
+        var res = {action:'nomatch'};
         var match = '';
         for(var i = 0; i < user.s.length; i++){
             if(!user.s[i].con && user.s[i].active && user.s[i].id !== oid && lastMatches[0] !== user.s[i].id){ // able, active, not self
-                if(user.s[i].send({type: 'offer', id: oid, sdp: sdp, gwid: 'erm'})){
+                if(user.s[i].send({action: 'offer', id: oid, sdp: sdp, gwid: 'erm'})){
                     user.s[i].con = oid;              // note who this peer is about to be connected to
-                    res.type = 'match';
+                    res.action = 'match';
                     match = user.s[i].id;
                     break;
                 } else { deadUsers.push(i); }
@@ -53,18 +53,18 @@ var user = { // definitely use a database for this
             theDead.forEach(function eachDead(dead){user.s.splice(dead, 1);}); // if connection was closed remove user
             if(activeDead){
                 user.s.forEach(function eachRemaining(client){
-                    client.send({type:'pool', count: -activeDead});
+                    client.send({action:'pool', count: -activeDead});
                 }); // broadcast to others
             }
         }
     },
     answer: function(oid, sdp, peerId, sendFunc){ // find a specific peer to connect with
-        var res = {type:'nomatch'};
+        var res = {action:'nomatch'};
         var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
             if(peerId === user.s[i].id){
-                if(user.s[i].send({type: 'answer', id: oid, sdp: sdp, gwid: 'erm'})){
-                    res.type = 'match';
+                if(user.s[i].send({action: 'answer', id: oid, sdp: sdp, gwid: 'erm'})){
+                    res.action = 'match';
                     break;
                 } else { deadUsers.push(i); }
             }
@@ -76,7 +76,7 @@ var user = { // definitely use a database for this
         var deadUsers = [];
         for(var i = 0; i < user.s.length; i++){
             if(user.s[i].con === oid){
-                if(user.s[i].send({type: 'ice', candidates: candidates})){
+                if(user.s[i].send({action: 'ice', candidates: candidates})){
                     return true;                           // confirm match was made
                 } else { deadUsers.push(i); }              // if connection was closed remove user
             }
@@ -103,7 +103,7 @@ var pool = {
                 user.s[i].active = false;
                 if(pause){user.s[i].con = 'done';}         // don't connect anyone to this client until they are ready
             }
-            if(user.s[i].send({type: 'pool', count: -1})){ // notify users a new connection has been added to pool
+            if(user.s[i].send({action: 'pool', count: -1})){ // notify users a new connection has been added to pool
             } else {deadUsers.push(i);}
         }
         user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
@@ -121,7 +121,7 @@ var pool = {
                 user.s[i].send = sendFunc;
                 conP++; free++;
             } else {
-                if(user.s[i].send({type: 'pool', count: amount})){ // sending zero make be wastefull, but we need to check and increment
+                if(user.s[i].send({action: 'pool', count: amount})){ // sending zero make be wastefull, but we need to check and increment
                     if(user.s[i].id !== lastMatches[0]){matchPotential++; console.log('adding potential');}
                     if(user.s[i].active){conP++;}                  // count active participants able to be match
                     if(!user.s[i].con)  {free++;}
@@ -132,11 +132,11 @@ var pool = {
             if(matchPotential){
                 console.log('making match potential offer');
                 if(fromFreeOffer){pool.freeOffers--;}
-                sendFunc({type:'makeOffer', pool: conP});
+                sendFunc({action:'makeOffer', pool: conP});
             } else { // no potential match
                 console.log('no match no potential');
                 pool.freeOffers++;
-                sendFunc({type:'setPool', pool: conP});
+                sendFunc({action:'setPool', pool: conP});
             }
         }
         if(pool.freeOffers){
@@ -144,7 +144,7 @@ var pool = {
         else if(free % 2 === 0){
             console.log('typical match case, divisable by two');
             match(false);}
-        else {sendFunc({type:'setPool', pool: conP});}
+        else {sendFunc({action:'setPool', pool: conP});}
         user.bringOutYouDead(deadUsers); // blow away dead users after a match is found
     },
     join: function(oid, sendFunc, lastMatches){
@@ -184,31 +184,31 @@ var socket = {
         };
     },
     incoming: function(message, sendFunc){
-        var req = {type: null};                              // defaut request assumption
+        var req = {action: null};                              // defaut request assumption
         try{req = JSON.parse(message);} catch(error){console.log(error);}       // try to parse JSON if its JSON if not we have a default object
         if(socket.open){
-            if(req.type === 'offer'){
+            if(req.action === 'offer'){
                 user.offer(req.oid, req.sdp, sendFunc, req.lastMatches);
-            } else if(req.type === 'connected'){
+            } else if(req.action === 'connected'){
                 if(req.oid){ pool.join(req.oid, sendFunc, req.lastMatches); console.log(req.oid + ' ');}
                 else       { console.log('malformed connection'); }
-            } else if(req.type === 'answer'){
+            } else if(req.action === 'answer'){
                 user.answer(req.oid, req.sdp, req.peerId, sendFunc);
-            } else if(req.type === 'ice'){
+            } else if(req.action === 'ice'){
                 user.ice(req.oid, req.candidates);
-            } else if(req.type === 'unmatched'){
+            } else if(req.action === 'unmatched'){
                 user.rematch(req.oid, sendFunc);
-            } else if(req.type === 'repool'){
+            } else if(req.action === 'repool'){
                 pool.add(req.oid, sendFunc, 1, req.lastMatches);
-            } else if(req.type === 'reduce'){
+            } else if(req.action === 'reduce'){
                 pool.reduce(req.oid, req.pause);
-            } else if(req.type === 'pause'){
+            } else if(req.action === 'pause'){
                 user.pause(req.oid, sendFunc);
-            } else if(req.type === 'error'){
+            } else if(req.action === 'error'){
                 console.log('client error: ' + req.error);
             } else { console.log('thats a wooper: ' + message); }      // given message was just a string or something other than JSON
         }
-        if(req.type === 'startup'){
+        if(req.action === 'startup'){
             if(req.pass === process.env.PASS){
                 socket.open = true;
                 setTimeout(function(){
