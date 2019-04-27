@@ -26,13 +26,24 @@ var user = { // definitely use a database for this
         var res = {action:'nomatch'};
         var match = '';
         for(var i = 0; i < user.s.length; i++){
-            if(!user.s[i].con && user.s[i].active && user.s[i].id !== oid && lastMatches[0] !== user.s[i].id){ // able, active, not self
-                if(user.s[i].send({action: 'offer', id: oid, sdp: sdp, gwid: 'erm'})){
-                    user.s[i].con = oid;              // note who this peer is about to be connected to
-                    res.action = 'match';
-                    match = user.s[i].id;
-                    break;
-                } else { deadUsers.push(i); }
+            if(lastMatches){
+                if(!user.s[i].con && user.s[i].active && user.s[i].id !== oid && lastMatches[0] !== user.s[i].id){ // able, active, not self
+                    if(user.s[i].send({action: 'offer', id: oid, sdp: sdp, gwid: 'erm'})){
+                        user.s[i].con = oid;              // note who this peer is about to be connected to
+                        res.action = 'match';
+                        match = user.s[i].id;
+                        break;
+                    } else { deadUsers.push(i); }
+                }
+            } else {
+                if(!user.s[i].con && user.s[i].active && user.s[i].id !== oid){ // able, active, not self
+                    if(user.s[i].send({action: 'offer', id: oid, sdp: sdp, gwid: 'erm'})){
+                        user.s[i].con = oid;              // note who this peer is about to be connected to
+                        res.action = 'match';
+                        match = user.s[i].id;
+                        break;
+                    } else { deadUsers.push(i); }
+                }
             }
         }
         if(match){
@@ -122,7 +133,9 @@ var pool = {
                 conP++; free++;
             } else {
                 if(user.s[i].send({action: 'pool', count: amount})){ // sending zero make be wastefull, but we need to check and increment
-                    if(user.s[i].id !== lastMatches[0]){matchPotential++; console.log('adding potential');}
+                    if(lastMatches){
+                        if(user.s[i].id !== lastMatches[0]){matchPotential++; console.log('adding potential');}
+                    } else {matchPotential++; console.log('adding potential');}
                     if(user.s[i].active){conP++;}                  // count active participants able to be match
                     if(!user.s[i].con)  {free++;}
                 } else { deadUsers.push(i); }                      // notify all users a new connection has been added to pool
